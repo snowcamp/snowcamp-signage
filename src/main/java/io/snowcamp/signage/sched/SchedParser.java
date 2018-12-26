@@ -17,6 +17,7 @@ package io.snowcamp.signage.sched;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 
 import com.google.api.services.sheets.v4.Sheets;
@@ -75,7 +77,7 @@ public final class SchedParser implements SessionRowParser {
 
     private boolean isSessionRow(final Row row) {
         requireNonNull(row);
-        return row.size() == 14;
+        return row.size() == 14 && isNotEmpty(row.getAsString(SPEAKERS_INDEX));
     }
 
     private Session mapToSession(final Row row) {
