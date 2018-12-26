@@ -1,0 +1,64 @@
+= Signage Generation
+
+This project aims to generate GSlides to display the SnowCamp.io schedule on the TV sets
+of the rooms.
+
+== Configure the project
+
+Add your Google APIs credentials into a file `src/main/resources/credentials.json`.
+
+=== Get your Google Credentials
+
+Use the same project name for the Google Slides, Google SpreadSheet and Google Drive APIs.
+For instance, `SnowCampSignage`.
+
+==== Google Slides
+
+Get your credentials. The simpler is to follow:
+
+https://developers.google.com/slides/how-tos/presentations#copying_an_existing_presentation
+
+==== Google Drive
+
+Activate this API too for the same project.
+
+==== Google Sheets
+
+Activate this API too for the same projet.
+
+`https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=<your_project_id>`
+
+==== References
+
+https://developers.google.com/slides/how-tos/merge
+
+https://developers.google.com/sheets/api/quickstart/java
+
+https://developers.google.com/slides/quickstart/java
+
+https://www.youtube.com/watch?time_continue=3&v=h2_oiGv3ZdQ
+
+== Steps
+
+Once this project is setup:
+
+. Export the SnowCamp.io sessions from https://sched.com/[Sched] as Excel spreadsheet or csv
+. Import the spreadsheet into Google Drive
+. Convert the spreadsheet as a GSheet
+. Get the id of the GSheet: https://docs.google.com/spreadsheets/d/<gsheet_id>/edit
+. Get the id of the template GSlide: https://docs.google.com/presentation/d/<gslides_id>/edit
+. In `io.snowcamp.signage.App`, update the code:
+
++
+[source,java]
+----
+String templatePresentationId = "<your_sched_gsheet_id>";
+String spreadsheetId = "<your_template_glside_id>";
+----
+
+. Run the `main()` of the `io.snowcamp.signage.App`
+. Go to your Google Drive: your signage slides should have been generated
+
+== Issues?
+
+Issues with Google APIs? -> remove the folder `tokens` and try again.
