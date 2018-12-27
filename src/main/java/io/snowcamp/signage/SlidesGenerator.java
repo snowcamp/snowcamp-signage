@@ -18,16 +18,11 @@ package io.snowcamp.signage;
 import static java.time.format.TextStyle.FULL;
 import static java.util.Locale.FRENCH;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 import static org.apache.commons.text.WordUtils.capitalize;
 
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
-import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
@@ -45,10 +40,13 @@ import com.google.api.services.slides.v1.model.Response;
 import com.google.api.services.slides.v1.model.SubstringMatchCriteria;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Streams;
 
 import io.snowcamp.signage.session.DaySessions;
 import io.snowcamp.signage.session.Session;
+import io.vavr.Value;
+import io.vavr.collection.List;
+import io.vavr.collection.Stream;
+import io.vavr.control.Try;
 
 public final class SlidesGenerator {
     private static final DateTimeFormatter HOURS_FORMATTER = DateTimeFormatter.ofPattern("HH'h'mm");
@@ -65,34 +63,33 @@ public final class SlidesGenerator {
         this.googleDrive = requireNonNull(googleDrive);
     }
 
-    public String generateSlides(final String templatePresentationId, final DaySessions daySessions) {
+    public Try<String> generateSlides(final String templatePresentationId, final DaySessions daySessions) {
         requireNonNull(templatePresentationId);
         requireNonNull(daySessions);
 
-        try {
-            final String presentationId = copyPresentation(templatePresentationId, presentationName(daySessions));
+        return Try.ofCallable(() -> generate(templatePresentationId, daySessions));
+    }
 
-            final String templateSlideId = templateSlideId(presentationId);
-            final List<Session> sessions = daySessions.sessions();
-            final Stream<String> slideIds = duplicateSlides(presentationId, templateSlideId, sessions.size());
+    private String generate(final String templatePresentationId, final DaySessions daySessions) throws IOException {
+        final String presentationId = copyPresentation(templatePresentationId, presentationName(daySessions));
 
-            return replaceTemplateVariables(presentationId, slideIds, sessions.stream());
-        } catch (Exception e) {
-            e.printStackTrace(); // FIXME
-        }
-        return null;
+        final String templateSlideId = templateSlideId(presentationId);
+        final List<Session> sessions = daySessions.sessions();
+        final Stream<String> slideIds = duplicateSlides(presentationId, templateSlideId, sessions.size());
+
+        return replaceTemplateVariables(presentationId, slideIds, sessions);
     }
 
     private String replaceTemplateVariables(final String presentationId,
                                             final Stream<String> slideIds,
-                                            final Stream<Session> sessions) throws IOException {
+                                            final List<Session> sessions) throws IOException {
         final List<Request> replaceRequests =
-                Streams.zip(slideIds, sessions, SlidesGenerator::replaceTextRequests)
-                       .flatMap(Collection::stream)
-                       .collect(toList());
+                slideIds.zipWith(sessions, SlidesGenerator::replaceTextRequests)
+                        .flatMap(Value::toStream)
+                        .toList();
 
         final BatchUpdatePresentationRequest batchReplaceRequests =
-                new BatchUpdatePresentationRequest().setRequests(replaceRequests);
+                new BatchUpdatePresentationRequest().setRequests(replaceRequests.asJava());
         googleSlides.presentations().batchUpdate(presentationId, batchReplaceRequests).execute();
 
         return presentationId;
@@ -108,17 +105,17 @@ public final class SlidesGenerator {
     private Stream<String> duplicateSlides(final String presentationId,
                                            final String slideId,
                                            final int slidesNumber) throws IOException {
-        final List<Request> requests = IntStream.range(0, slidesNumber)
-                                                .mapToObj(i -> duplicateSlideRequest(slideId))
-                                                .collect(toList());
-        requests.add(deleteSlideRequest(slideId));
+        List<Request> requests = Stream.range(0, slidesNumber)
+                                             .map(i -> duplicateSlideRequest(slideId))
+                                             .toList();
+        requests = requests.append(deleteSlideRequest(slideId));
 
-        final BatchUpdatePresentationRequest batchRequests = new BatchUpdatePresentationRequest().setRequests(requests);
+        final BatchUpdatePresentationRequest batchRequests =
+                new BatchUpdatePresentationRequest().setRequests(requests.asJava());
         final BatchUpdatePresentationResponse responses =
                 googleSlides.presentations().batchUpdate(presentationId, batchRequests).execute();
 
-        return responses.getReplies()
-                        .stream()
+        return Stream.ofAll(responses.getReplies())
                         .map(Response::getDuplicateObject)
                         .filter(Objects::nonNull)
                         .map(DuplicateObjectResponse::getObjectId);
@@ -142,7 +139,7 @@ public final class SlidesGenerator {
 
     private String templateSlideId(final String presentationId) throws IOException {
         final Presentation presentation = googleSlides.presentations().get(presentationId).execute();
-        final List<Page> slides = presentation.getSlides();
+        final java.util.List<Page> slides = presentation.getSlides();
 
         Preconditions.checkState(!slides.isEmpty(), "no slide for presentationId [" + presentationId + "]");
         return slides.get(0).getObjectId();
@@ -159,7 +156,7 @@ public final class SlidesGenerator {
     private static Request replaceTextRequest(final String slideId, final String textToReplace, final String text) {
         return new Request().setReplaceAllText(
                 new ReplaceAllTextRequest()
-                        .setPageObjectIds(List.of(slideId)).setReplaceText(text)
+                        .setPageObjectIds(java.util.List.of(slideId)).setReplaceText(text)
                         .setContainsText(new SubstringMatchCriteria().setMatchCase(true).setText(textToReplace)));
     }
 

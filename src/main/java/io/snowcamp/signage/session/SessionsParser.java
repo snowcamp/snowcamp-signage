@@ -15,18 +15,15 @@
  */
 package io.snowcamp.signage.session;
 
+import static io.vavr.Function1.identity;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toCollection;
 
 import java.time.DayOfWeek;
 import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.Map.Entry;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.stream.Collector;
-import java.util.stream.Stream;
+
+import io.vavr.Tuple2;
+import io.vavr.collection.Stream;
 
 public final class SessionsParser {
     private final SessionRowParser sessionRowParser;
@@ -38,24 +35,17 @@ public final class SessionsParser {
     public Stream<DaySessions> parse(final String spreadSheetId) {
         requireNonNull(spreadSheetId);
         return sessionRowParser.parseSessions(spreadSheetId)
-                               .collect(groupSessionsByDay())
-                               .entrySet()
-                               .stream()
-                               .map(this::mapToDaySessions);
+                               .toStream()
+                               .flatMap(identity())
+                               .groupBy(Session::dayInTheWeek)
+                               .map(this::mapToSession)
+                               .toStream();
     }
 
-    private Collector<Session, ?, EnumMap<DayOfWeek, SortedSet<Session>>> groupSessionsByDay() {
-        return groupingBy(Session::dayInTheWeek,
-                          () -> new EnumMap<>(DayOfWeek.class),
-                          toCollection(() -> new TreeSet<>(sessionComparator())));
+    private DaySessions mapToSession(final Tuple2<DayOfWeek, Stream<Session>> daySessions) {
+        return new DaySessions(daySessions._1, daySessions._2.toList().sorted(sessionComparator()));
     }
-
     private Comparator<Session> sessionComparator() {
-        return Comparator.comparing(Session::start).thenComparing(Session::room).reversed();
+        return comparing(Session::start).thenComparing(Session::room).reversed();
     }
-
-    private DaySessions mapToDaySessions(final Entry<DayOfWeek, SortedSet<Session>> e) {
-        return new DaySessions(e.getKey(), e.getValue());
-    }
-
 }

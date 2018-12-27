@@ -19,7 +19,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.util.List;
+
+import io.vavr.collection.List;
 
 public final class Session {
     public static final class Builder {

@@ -18,16 +18,16 @@ package io.snowcamp.signage.session;
 import static java.util.Objects.requireNonNull;
 
 import java.time.DayOfWeek;
-import java.util.Collection;
-import java.util.List;
+
+import io.vavr.collection.List;
 
 public final class DaySessions {
     private final DayOfWeek day;
     private final List<Session> sessions;
 
-    public DaySessions(final DayOfWeek day, final Collection<Session> sessions) {
+    public DaySessions(final DayOfWeek day, final List<Session> sessions) {
         this.day = requireNonNull(day);
-        this.sessions = requireNonNull(List.copyOf(sessions));
+        this.sessions = requireNonNull(sessions);
     }
 
     public DayOfWeek day() {

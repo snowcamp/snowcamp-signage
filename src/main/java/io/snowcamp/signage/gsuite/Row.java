@@ -19,8 +19,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
+
+import io.vavr.collection.List;
+import io.vavr.control.Option;
 
 public final class Row {
     private final List<Object> row;
@@ -34,20 +35,18 @@ public final class Row {
     }
 
     public String getAsString(final int index) {
-        return getAsOptionalString(index)
-                   .orElse(null);
+        return getAsOptionalString(index).getOrNull();
     }
 
     public LocalDateTime getAsLocalDateTime(final int index, final DateTimeFormatter formatter) {
         requireNonNull(formatter);
         return getAsOptionalString(index)
                    .map(s -> LocalDateTime.parse(s, formatter))
-                   .orElse(null);
+                   .getOrNull();
     }
 
-    private Optional<String> getAsOptionalString(final int index) {
-        return Optional.ofNullable(row.get(index))
-                       .map(Object::toString);
+    public Option<String> getAsOptionalString(final int index) {
+        return Option.of(row.get(index)).map(Object::toString);
     }
 
 }

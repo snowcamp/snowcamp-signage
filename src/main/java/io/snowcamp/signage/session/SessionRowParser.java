@@ -15,8 +15,10 @@
  */
 package io.snowcamp.signage.session;
 
-import java.util.stream.Stream;
+
+import io.vavr.collection.Stream;
+import io.vavr.control.Try;
 
 public interface SessionRowParser {
-    Stream<Session> parseSessions(String spreadSheetId);
+    Try<Stream<Session>> parseSessions(String spreadSheetId);
 }

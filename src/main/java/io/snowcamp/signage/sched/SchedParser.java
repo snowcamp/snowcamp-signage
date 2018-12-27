@@ -16,17 +16,10 @@
 package io.snowcamp.signage.sched;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
-import java.io.IOException;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 
 import com.google.api.services.sheets.v4.Sheets;
@@ -34,6 +27,9 @@ import com.google.api.services.sheets.v4.Sheets;
 import io.snowcamp.signage.gsuite.Row;
 import io.snowcamp.signage.session.Session;
 import io.snowcamp.signage.session.SessionRowParser;
+import io.vavr.collection.List;
+import io.vavr.collection.Stream;
+import io.vavr.control.Try;
 
 public final class SchedParser implements SessionRowParser {
     private static final String RANGE = "Sessions!B9:O";
@@ -51,24 +47,18 @@ public final class SchedParser implements SessionRowParser {
     }
 
     @Override
-    public Stream<Session> parseSessions(final String spreadSheetId) {
+    public Try<Stream<Session>> parseSessions(final String spreadSheetId) {
         requireNonNull(spreadSheetId);
-        try {
-            return googleSheets.spreadsheets()
-                               .values()
-                               .get(spreadSheetId, RANGE)
-                               .execute()
-                               .getValues()
-                               .stream()
-                               .map(this::mapToRow)
-                               .filter(this::isSessionRow)
-                               .map(this::mapToSession)
-                               ;
-        } catch (IOException e) { // FIXME
-            e.printStackTrace();
-        }
-
-        return List.<Session>of().stream();
+        return Try.of(() -> Stream.ofAll(googleSheets.spreadsheets()
+                                                     .values()
+                                                     .get(spreadSheetId, RANGE)
+                                                     .execute()
+                                                     .getValues()
+                                                     .stream()
+                                                     .map(List::ofAll)
+                                                     .map(this::mapToRow)
+                                                     .filter(this::isSessionRow)
+                                                     .map(this::mapToSession)));
     }
 
     private Row mapToRow(final List<Object> row) {
@@ -92,10 +82,11 @@ public final class SchedParser implements SessionRowParser {
     }
 
     private List<String> mapToSpeakers(final Row row) {
-        return Optional.ofNullable(row.getAsString(SPEAKERS_INDEX))
-                       .map(speakers -> speakers.split(SPEAKERS_SEPARATOR))
-                       .map(Arrays::stream)
-                       .map(speakers -> speakers.map(String::toLowerCase).map(WordUtils::capitalize).collect(toList()))
-                       .orElse(List.of());
+        return row.getAsOptionalString(SPEAKERS_INDEX)
+                  .map(String::toLowerCase)
+                  .map(WordUtils::capitalize)
+                  .map(speakers -> speakers.split(SPEAKERS_SEPARATOR))
+                  .map(List::of)
+                  .getOrElse(List.of());
     }
 }
