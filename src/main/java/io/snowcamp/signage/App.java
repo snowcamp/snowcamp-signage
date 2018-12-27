@@ -16,6 +16,7 @@
 package io.snowcamp.signage;
 
 import static io.snowcamp.signage.gsuite.GSuiteFactories.*;
+import static io.vavr.Function1.identity;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -23,6 +24,7 @@ import java.security.GeneralSecurityException;
 import io.snowcamp.signage.sched.SchedParser;
 import io.snowcamp.signage.session.SessionRowParser;
 import io.snowcamp.signage.session.SessionsParser;
+import io.vavr.control.Try;
 
 public final class App {
     private static final String GSLIDES_URL = "https://docs.google.com/presentation/d/";
@@ -38,13 +40,19 @@ public final class App {
         final SlidesGenerator slidesGenerator = new SlidesGenerator(googleSlides(), googleDrive());
 
         sessionsParser.parse(spreadsheetId)
+                      .onFailure(err -> System.err.printf("failed to parse the spreadsheet [id=%s]: %s\n",
+                                                          spreadsheetId, err))
+                      .toStream()
+                      .flatMap(identity())
                       .map(daySessions -> slidesGenerator.generateSlides(templatePresentationId, daySessions))
-                      .forEach(t -> t.map(id -> GSLIDES_URL + id)
-                                     .onSuccess(url -> System.out.printf("presentation successfully generated at %s\n",
-                                      url))
-                                     .onFailure(err -> System.err.printf("failed to generate the presentation %s: \n",
-                                                                         err)));
+                      .forEach(App::displayPresentationUrl);
 
         System.out.println("That's it!");
+    }
+
+    private static Try<String> displayPresentationUrl(final Try<String> slideId) {
+        return slideId.map(id -> GSLIDES_URL + id)
+                      .onSuccess(url -> System.out.printf("presentation successfully generated at %s\n", url))
+                      .onFailure(err -> System.err.printf("failed to generate the presentation: %s\n", err));
     }
 }

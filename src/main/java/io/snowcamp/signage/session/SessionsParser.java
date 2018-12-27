@@ -23,7 +23,9 @@ import java.time.DayOfWeek;
 import java.util.Comparator;
 
 import io.vavr.Tuple2;
+import io.vavr.collection.Seq;
 import io.vavr.collection.Stream;
+import io.vavr.control.Try;
 
 public final class SessionsParser {
     private final SessionRowParser sessionRowParser;
@@ -32,14 +34,11 @@ public final class SessionsParser {
         this.sessionRowParser = requireNonNull(sessionRowParser);
     }
 
-    public Stream<DaySessions> parse(final String spreadSheetId) {
+    public Try<Seq<DaySessions>> parse(final String spreadSheetId) {
         requireNonNull(spreadSheetId);
         return sessionRowParser.parseSessions(spreadSheetId)
-                               .toStream()
-                               .flatMap(identity())
-                               .groupBy(Session::dayInTheWeek)
-                               .map(this::mapToSession)
-                               .toStream();
+                               .map(sessions -> sessions.groupBy(Session::dayInTheWeek).map(this::mapToSession))
+                               ;
     }
 
     private DaySessions mapToSession(final Tuple2<DayOfWeek, Stream<Session>> daySessions) {
